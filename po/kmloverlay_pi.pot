@@ -1,0 +1,46 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: kmloverlay_pi 2.6.1310\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2012-02-12 18:10+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/kmloverlay_pi.cpp:122 src/kmloverlay_pi.cpp:127
+msgid "KML overlay"
+msgstr ""
+
+#: src/kmloverlay_pi.cpp:187
+msgid "KMLOverlay"
+msgstr ""
+
+#: src/kmloverlay_pi.cpp:193 src/kmloverlay_pi.cpp:198
+msgid "KML overlay plugin for OpenCPN"
+msgstr ""
+
+#: src/prefdlg.cpp:42
+msgid "KML overlay preferences"
+msgstr ""
+
+#: src/prefdlg.cpp:49
+msgid "Preferences"
+msgstr ""
+
+#: src/prefdlg.cpp:57
+msgid "Interval (minutes):"
+msgstr ""
+
+#: src/ui.cpp:142
+msgid "Select a file"
+msgstr ""
