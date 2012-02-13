@@ -16,14 +16,20 @@ if(NOT libkml_FIND_COMPONENTS)
     set(libkml_FIND_COMPONENTS dom)
 endif()
 
-# required libs for libKML
-FIND_LIBRARY( libkml_MINIZIP_LIBRARY NAMES "minizip" )
-FIND_LIBRARY( libkml_ZLIB_LIBRARY NAMES "z" )
-FIND_LIBRARY( libkml_EXPAT_LIBRARY NAMES "expat" )
-FIND_LIBRARY( libkml_URIPARSER_LIBRARY NAMES "uriparser" )
+IF(WIN32)
+    # required libs for libKML
+    # This ease use of cmake for Windows users
+    # Unices handle this as deps of libkml
+    FIND_LIBRARY( libkml_MINIZIP_LIBRARY NAMES "minizip" )
+    FIND_LIBRARY( libkml_ZLIB_LIBRARY NAMES "z" )
+    FIND_LIBRARY( libkml_EXPAT_LIBRARY NAMES "expat" )
+    FIND_LIBRARY( libkml_URIPARSER_LIBRARY NAMES "uriparser" )
+    SET( libkml_LIBRARIES ${libkml_MINIZIP_LIBRARY} ${libkml_ZLIB_LIBRARY} ${libkml_EXPAT_LIBRARY} ${libkml_URIPARSER_LIBRARY} )
+ENDIF(WIN32)
+
 # base is always required
 FIND_LIBRARY( libkml_BASE_LIBRARY NAMES "kmlbase" )
-SET( libkml_LIBRARIES ${libkml_MINIZIP_LIBRARY} ${libkml_ZLIB_LIBRARY} ${libkml_EXPAT_LIBRARY} ${libkml_URIPARSER_LIBRARY} ${libkml_BASE_LIBRARY} )
+SET( libkml_LIBRARIES ${libkml_LIBRARIES} ${libkml_BASE_LIBRARY} )
 
 foreach(_component ${libkml_FIND_COMPONENTS})
     if(_component STREQUAL "dom")
