@@ -65,16 +65,18 @@ private:
             bool GetVisibility();
 
       private:
-            void RenderPoint( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::PointPtr& point );
-            void RenderLineString( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::LineStringPtr& linestring );
-            void RenderLinearRing( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::LinearRingPtr& linearring );
-            void RenderPolygon( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::PolygonPtr& polygon );
+            const kmldom::StylePtr GetFeatureStylePtr( const kmldom::FeaturePtr& feature );
+            void RenderPoint( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::PointPtr& point, const kmldom::StylePtr& style );
+            void RenderLineString( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::LineStringPtr& linestring, const kmldom::StylePtr& style );
+            void RenderLinearRing( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::LinearRingPtr& linearring, const kmldom::StylePtr& style );
+            void RenderPolygon( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::PolygonPtr& polygon, const kmldom::StylePtr& style );
             void RenderGroundOverlay( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::GroundOverlayPtr& groundoverlay );
-            void RenderGeometry( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::GeometryPtr& geometry );
+            void RenderGeometry( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::GeometryPtr& geometry, const kmldom::StylePtr& style );
             void RenderFeature( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::FeaturePtr& feature );
             bool       m_ready;
             wxString   m_filename;
             bool       m_visible;
+            kmlengine::KmlFilePtr m_kml_file;
             kmldom::FeaturePtr m_root;
 
       };

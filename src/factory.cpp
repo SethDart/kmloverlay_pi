@@ -42,7 +42,7 @@ WX_DECLARE_LIST(wxPoint, wxPointList);
 WX_DEFINE_LIST(wxPointList);
 #endif
 
-const wxColor KMLOverlayColor = wxColor( 144, 144, 144 );
+const wxColor KMLOverlayDefaultColor( 144, 144, 144 );
 
 KMLOverlayFactory::KMLOverlayFactory()
 {
@@ -127,24 +127,43 @@ bool KMLOverlayFactory::Container::Parse()
       }
 
       std::string errors;
-      kmlengine::KmlFilePtr kml_file = kmlengine::KmlFile::CreateFromParse( file_data, &errors );
-      if ( !kml_file ) {
+      m_kml_file = kmlengine::KmlFile::CreateFromParse( file_data, &errors );
+      if ( !m_kml_file ) {
             // TODO: display error message
             return false;
       }
 
 /*
-      kmldom::ElementPtr element = kml_file->get_root();
+      kmldom::ElementPtr element = m_kml_file->get_root();
       const kmldom::KmlPtr kml = kmldom::AsKml( element );
       m_root = kml->get_feature();
 */
-      m_root = kmlengine::GetRootFeature( kml_file->get_root() );
+      m_root = kmlengine::GetRootFeature( m_kml_file->get_root() );
 
       m_ready = true;
       return true;
 }
 
-void KMLOverlayFactory::Container::RenderPoint( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::PointPtr& point )
+const kmldom::StylePtr KMLOverlayFactory::Container::GetFeatureStylePtr( const kmldom::FeaturePtr& feature )
+{
+      kmldom::StylePtr style = kmlengine::CreateResolvedStyle( feature, m_kml_file, kmldom::STYLESTATE_NORMAL );
+
+      // Some inline styles are not found by CreateResolvedStyle
+      // Try to find them directly
+      if ( style->get_id().empty() && feature->has_styleurl() ) {
+            std::string style_id;  // fragment
+            if ( kmlengine::SplitUriFragment( feature->get_styleurl(), &style_id ) ) {
+                  const kmldom::ObjectPtr object = m_kml_file->GetObjectById( style_id );
+                  if ( style = kmldom::AsStyle( object ) ) {
+                        return style;
+                  }
+            }
+      }
+
+      return style;
+}
+
+void KMLOverlayFactory::Container::RenderPoint( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::PointPtr& point, const kmldom::StylePtr& style )
 {
       if ( point->has_coordinates() ) {
             int radius = 5;
@@ -159,14 +178,14 @@ void KMLOverlayFactory::Container::RenderPoint( wxDC &dc, PlugIn_ViewPort *vp, c
             kmlbase::Vec3 vec = coord->get_coordinates_array_at( 0 );
             GetCanvasPixLL( vp,  &pt, vec.get_latitude(), vec.get_longitude() );
 
-            wxPen pen( KMLOverlayColor, 1 );
+            wxPen pen( KMLOverlayDefaultColor, 1 );
             dc.SetPen( pen );
-            dc.SetBrush( KMLOverlayColor );
+            dc.SetBrush( KMLOverlayDefaultColor );
             dc.DrawCircle( pt, radius );
       }
 }
 
-void KMLOverlayFactory::Container::RenderLineString( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::LineStringPtr& linestring )
+void KMLOverlayFactory::Container::RenderLineString( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::LineStringPtr& linestring, const kmldom::StylePtr& style )
 {
       if ( linestring->has_coordinates() ) {
             wxPointList ptlist;
@@ -178,15 +197,38 @@ void KMLOverlayFactory::Container::RenderLineString( wxDC &dc, PlugIn_ViewPort *
                   ptlist.Append ( pt );
             }
 
-            wxPen pen( KMLOverlayColor, 2 );
-            dc.SetPen( pen );
-            dc.DrawLines( (wxList *)&ptlist );
+            wxPen pen( KMLOverlayDefaultColor, 2 );
+            int alpha = 255;
+            if ( style->has_linestyle() ) {
+                  const kmldom::LineStylePtr& linestyle = style->get_linestyle();
+/* TODO: Implement colormode=random
+ * see http://code.google.com/apis/kml/documentation/kmlreference.html#colorstyle
+                  has_colormode
+                  int get_colormode()
+                     COLORMODE_NORMAL = 0,
+                     COLORMODE_RANDOM
+*/
+                  if ( linestyle->has_color() ) {
+                        kmlbase::Color32 col32 = linestyle->get_color();
+
+                        pen = wxPen( wxColor( col32.get_red(), col32.get_green(), col32.get_blue(), col32.get_alpha() ),
+                                     linestyle->get_width() );
+                        alpha = col32.get_alpha();
+                  }
+            }
+//            if ( alpha == 255 ) {
+                  dc.SetPen( pen );
+                  dc.DrawLines( (wxList *)&ptlist );
+//            } else {
+// TODO
+                  //DrawLinesAlpha( dc, pen (wxList *)&ptlist );
+//            }
             ptlist.DeleteContents(true);
             ptlist.Clear();
       }
 }
 
-void KMLOverlayFactory::Container::RenderLinearRing( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::LinearRingPtr& linearring )
+void KMLOverlayFactory::Container::RenderLinearRing( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::LinearRingPtr& linearring, const kmldom::StylePtr& style )
 {
       if ( linearring->has_coordinates() ) {
             wxPointList ptlist;
@@ -198,21 +240,60 @@ void KMLOverlayFactory::Container::RenderLinearRing( wxDC &dc, PlugIn_ViewPort *
                   ptlist.Append ( pt );
             }
 
-            wxPen pen( KMLOverlayColor, 2 );
+            wxPen pen( KMLOverlayDefaultColor, 2 );
+            wxBrush brush( *wxTRANSPARENT_BRUSH );
+            int alphaPen, alphaBrush = 255;
+            if ( style->has_polystyle() ) {
+                  const kmldom::PolyStylePtr polystyle = style->get_polystyle();
+                  if ( !polystyle->has_fill() || polystyle->get_fill() ) {
+                        if ( polystyle->has_color() ) {
+                              kmlbase::Color32 col32 = polystyle->get_color();
+
+                              if ( col32.get_alpha() ) {
+                                    brush = wxBrush( wxColor( col32.get_red(), col32.get_green(), col32.get_blue(), col32.get_alpha() ) );
+                              }
+                              alphaBrush = col32.get_alpha();
+                        }
+                  }
+                  if ( !polystyle->has_outline() || polystyle->get_outline() ) {
+                        if ( style->has_linestyle() ) {
+                              const kmldom::LineStylePtr& linestyle = style->get_linestyle();
+/*
+                  has_colormode
+                  int get_colormode()
+                     COLORMODE_NORMAL = 0,
+                     COLORMODE_RANDOM
+*/
+                              if ( linestyle->has_color() ) {
+                                    kmlbase::Color32 col32 = linestyle->get_color();
+
+                                    if ( col32.get_alpha() ) {
+                                          pen = wxPen( wxColor( col32.get_red(), col32.get_green(), col32.get_blue(), col32.get_alpha() ),
+                                                       linestyle->get_width() );
+                                    } else {
+                                          pen = *wxTRANSPARENT_PEN;
+                                    }
+                                    alphaPen = col32.get_alpha();
+                              }
+                        }
+                  }
+            }
+
             dc.SetPen( pen );
-            dc.SetBrush( *wxTRANSPARENT_BRUSH );
+            dc.SetBrush( brush );
             dc.DrawPolygon( (wxList *)&ptlist );
+
             ptlist.DeleteContents(true);
             ptlist.Clear();
       }
 }
 
-void KMLOverlayFactory::Container::RenderPolygon( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::PolygonPtr& polygon )
+void KMLOverlayFactory::Container::RenderPolygon( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::PolygonPtr& polygon, const kmldom::StylePtr& style )
 {
       if ( polygon->has_outerboundaryis() ) {
             kmldom::OuterBoundaryIsPtr bound = polygon->get_outerboundaryis();
             if ( bound->has_linearring() ) {
-                  RenderLinearRing( dc, vp, bound->get_linearring() );
+                  RenderLinearRing( dc, vp, bound->get_linearring(), style );
             }
 // TODO: handle inner boundary (array)
       }
@@ -229,7 +310,7 @@ void KMLOverlayFactory::Container::RenderGroundOverlay( wxDC &dc, PlugIn_ViewPor
  */
 }
 
-void KMLOverlayFactory::Container::RenderGeometry( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::GeometryPtr& geometry )
+void KMLOverlayFactory::Container::RenderGeometry( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::GeometryPtr& geometry, const kmldom::StylePtr& style )
 {
       if ( !geometry ) {
             return;
@@ -239,28 +320,28 @@ void KMLOverlayFactory::Container::RenderGeometry( wxDC &dc, PlugIn_ViewPort *vp
       case kmldom::Type_Point:
       {
             if ( const kmldom::PointPtr point = kmldom::AsPoint( geometry ) ) {
-                  RenderPoint( dc, vp, point );
+                  RenderPoint( dc, vp, point, style );
             }
       }
       break;
       case kmldom::Type_LineString:
       {
             if ( const kmldom::LineStringPtr linestring = kmldom::AsLineString( geometry ) ) {
-                  RenderLineString( dc, vp, linestring );
+                  RenderLineString( dc, vp, linestring, style );
             }
       }
       break;
       case kmldom::Type_LinearRing:
       {
             if ( const kmldom::LinearRingPtr linearring = kmldom::AsLinearRing( geometry ) ) {
-                  RenderLinearRing( dc, vp, linearring );
+                  RenderLinearRing( dc, vp, linearring, style );
             }
       }
       break;
       case kmldom::Type_Polygon:
       {
             if ( const kmldom::PolygonPtr polygon = kmldom::AsPolygon( geometry ) ) {
-                  RenderPolygon( dc, vp, polygon );
+                  RenderPolygon( dc, vp, polygon, style );
             }
       }
       break;
@@ -269,7 +350,7 @@ void KMLOverlayFactory::Container::RenderGeometry( wxDC &dc, PlugIn_ViewPort *vp
             if ( const kmldom::MultiGeometryPtr multigeometry = kmldom::AsMultiGeometry( geometry ) )
             {
                   for ( size_t i = 0; i < multigeometry->get_geometry_array_size(); ++i ) {
-                        RenderGeometry( dc, vp, multigeometry->get_geometry_array_at( i ) );
+                        RenderGeometry( dc, vp, multigeometry->get_geometry_array_at( i ), style );
                   }
             }
       }
@@ -315,7 +396,7 @@ void KMLOverlayFactory::Container::RenderFeature( wxDC &dc, PlugIn_ViewPort *vp,
       case kmldom::Type_Placemark:
       {
             if ( const kmldom::PlacemarkPtr placemark = kmldom::AsPlacemark( feature ) ) {
-                  RenderGeometry( dc, vp, placemark->get_geometry() );
+                  RenderGeometry( dc, vp, placemark->get_geometry(), GetFeatureStylePtr( feature ) );
             }
       }
       break;
