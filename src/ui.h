@@ -46,7 +46,7 @@ public:
       ~KMLOverlayUI();
 
       void SetColorScheme( PI_ColorScheme cs );
-      bool RenderOverlay( wxDC &dc, PlugIn_ViewPort *vp );
+      bool RenderOverlay( ocpnDC &dc, PlugIn_ViewPort *vp );
 
       void AddFile( wxString filename, bool visible );
       wxString GetFilename( int idx );

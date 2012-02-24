@@ -224,7 +224,7 @@ void kmloverlay_pi::SetColorScheme( PI_ColorScheme cs )
       }
 }
 
-bool kmloverlay_pi::RenderOverlay( wxDC &dc, PlugIn_ViewPort *vp )
+bool kmloverlay_pi::RenderOverlay( ocpnDC &dc, PlugIn_ViewPort *vp )
 {
       if ( m_puserinput )
       {

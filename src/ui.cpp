@@ -93,7 +93,7 @@ void KMLOverlayUI::SetColorScheme( PI_ColorScheme cs )
       Refresh(false);
 }
 
-bool KMLOverlayUI::RenderOverlay( wxDC &dc, PlugIn_ViewPort *vp )
+bool KMLOverlayUI::RenderOverlay( ocpnDC &dc, PlugIn_ViewPort *vp )
 {
       return m_pFactory->RenderOverlay( dc, vp );
 }

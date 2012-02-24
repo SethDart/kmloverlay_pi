@@ -36,12 +36,6 @@
 #include <kml/base/file.h>
 #include "factory.h"
 
-#if !wxCHECK_VERSION(2, 9, 0)
-WX_DECLARE_LIST(wxPoint, wxPointList);
-#include <wx/listimpl.cpp>
-WX_DEFINE_LIST(wxPointList);
-#endif
-
 const wxColor KMLOverlayDefaultColor( 144, 144, 144 );
 
 KMLOverlayFactory::KMLOverlayFactory()
@@ -58,7 +52,7 @@ KMLOverlayFactory::~KMLOverlayFactory()
       }
 }
 
-bool KMLOverlayFactory::RenderOverlay( wxDC &dc, PlugIn_ViewPort *vp )
+bool KMLOverlayFactory::RenderOverlay( ocpnDC &dc, PlugIn_ViewPort *vp )
 {
       for ( size_t i = 0; i < m_Objects.GetCount(); i++ )
       {
@@ -163,7 +157,7 @@ const kmldom::StylePtr KMLOverlayFactory::Container::GetFeatureStylePtr( const k
       return style;
 }
 
-void KMLOverlayFactory::Container::RenderPoint( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::PointPtr& point, const kmldom::StylePtr& style )
+void KMLOverlayFactory::Container::RenderPoint( ocpnDC &dc, PlugIn_ViewPort *vp, const kmldom::PointPtr& point, const kmldom::StylePtr& style )
 {
       if ( point->has_coordinates() ) {
             int radius = 5;
@@ -185,20 +179,17 @@ void KMLOverlayFactory::Container::RenderPoint( wxDC &dc, PlugIn_ViewPort *vp, c
       }
 }
 
-void KMLOverlayFactory::Container::RenderLineString( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::LineStringPtr& linestring, const kmldom::StylePtr& style )
+void KMLOverlayFactory::Container::RenderLineString( ocpnDC &dc, PlugIn_ViewPort *vp, const kmldom::LineStringPtr& linestring, const kmldom::StylePtr& style )
 {
       if ( linestring->has_coordinates() ) {
-            wxPointList ptlist;
             kmldom::CoordinatesPtr coord = linestring->get_coordinates();
+            wxPoint pts[coord->get_coordinates_array_size()];
             for ( size_t i = 0; i < coord->get_coordinates_array_size(); ++i ) {
                   kmlbase::Vec3 vec = coord->get_coordinates_array_at( i );
-                  wxPoint* pt = new wxPoint();
-                  GetCanvasPixLL( vp,  pt, vec.get_latitude(), vec.get_longitude() );
-                  ptlist.Append ( pt );
+                  GetCanvasPixLL( vp,  &pts[i], vec.get_latitude(), vec.get_longitude() );
             }
 
             wxPen pen( KMLOverlayDefaultColor, 2 );
-            int alpha = 255;
             if ( style->has_linestyle() ) {
                   const kmldom::LineStylePtr& linestyle = style->get_linestyle();
 /* TODO: Implement colormode=random
@@ -213,36 +204,25 @@ void KMLOverlayFactory::Container::RenderLineString( wxDC &dc, PlugIn_ViewPort *
 
                         pen = wxPen( wxColor( col32.get_red(), col32.get_green(), col32.get_blue(), col32.get_alpha() ),
                                      linestyle->get_width() );
-                        alpha = col32.get_alpha();
                   }
             }
-//            if ( alpha == 255 ) {
-                  dc.SetPen( pen );
-                  dc.DrawLines( (wxList *)&ptlist );
-//            } else {
-// TODO
-                  //DrawLinesAlpha( dc, pen (wxList *)&ptlist );
-//            }
-            ptlist.DeleteContents(true);
-            ptlist.Clear();
+            dc.SetPen( pen );
+            dc.DrawLines( coord->get_coordinates_array_size(), pts );
       }
 }
 
-void KMLOverlayFactory::Container::RenderLinearRing( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::LinearRingPtr& linearring, const kmldom::StylePtr& style )
+void KMLOverlayFactory::Container::RenderLinearRing( ocpnDC &dc, PlugIn_ViewPort *vp, const kmldom::LinearRingPtr& linearring, const kmldom::StylePtr& style )
 {
       if ( linearring->has_coordinates() ) {
-            wxPointList ptlist;
             kmldom::CoordinatesPtr coord = linearring->get_coordinates();
+            wxPoint pts[coord->get_coordinates_array_size()];
             for ( size_t i = 0; i < coord->get_coordinates_array_size(); ++i ) {
                   kmlbase::Vec3 vec = coord->get_coordinates_array_at( i );
-                  wxPoint* pt = new wxPoint();
-                  GetCanvasPixLL( vp,  pt, vec.get_latitude(), vec.get_longitude() );
-                  ptlist.Append ( pt );
+                  GetCanvasPixLL( vp,  &pts[i], vec.get_latitude(), vec.get_longitude() );
             }
 
             wxPen pen( KMLOverlayDefaultColor, 2 );
             wxBrush brush( *wxTRANSPARENT_BRUSH );
-            int alphaPen, alphaBrush = 255;
             if ( style->has_polystyle() ) {
                   const kmldom::PolyStylePtr polystyle = style->get_polystyle();
                   if ( !polystyle->has_fill() || polystyle->get_fill() ) {
@@ -252,7 +232,6 @@ void KMLOverlayFactory::Container::RenderLinearRing( wxDC &dc, PlugIn_ViewPort *
                               if ( col32.get_alpha() ) {
                                     brush = wxBrush( wxColor( col32.get_red(), col32.get_green(), col32.get_blue(), col32.get_alpha() ) );
                               }
-                              alphaBrush = col32.get_alpha();
                         }
                   }
                   if ( !polystyle->has_outline() || polystyle->get_outline() ) {
@@ -273,7 +252,6 @@ void KMLOverlayFactory::Container::RenderLinearRing( wxDC &dc, PlugIn_ViewPort *
                                     } else {
                                           pen = *wxTRANSPARENT_PEN;
                                     }
-                                    alphaPen = col32.get_alpha();
                               }
                         }
                   }
@@ -281,14 +259,11 @@ void KMLOverlayFactory::Container::RenderLinearRing( wxDC &dc, PlugIn_ViewPort *
 
             dc.SetPen( pen );
             dc.SetBrush( brush );
-            dc.DrawPolygon( (wxList *)&ptlist );
-
-            ptlist.DeleteContents(true);
-            ptlist.Clear();
+            dc.DrawPolygon( coord->get_coordinates_array_size(), pts );
       }
 }
 
-void KMLOverlayFactory::Container::RenderPolygon( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::PolygonPtr& polygon, const kmldom::StylePtr& style )
+void KMLOverlayFactory::Container::RenderPolygon( ocpnDC &dc, PlugIn_ViewPort *vp, const kmldom::PolygonPtr& polygon, const kmldom::StylePtr& style )
 {
       if ( polygon->has_outerboundaryis() ) {
             kmldom::OuterBoundaryIsPtr bound = polygon->get_outerboundaryis();
@@ -299,7 +274,7 @@ void KMLOverlayFactory::Container::RenderPolygon( wxDC &dc, PlugIn_ViewPort *vp,
       }
 }
 
-void KMLOverlayFactory::Container::RenderGroundOverlay( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::GroundOverlayPtr& groundoverlay )
+void KMLOverlayFactory::Container::RenderGroundOverlay( ocpnDC &dc, PlugIn_ViewPort *vp, const kmldom::GroundOverlayPtr& groundoverlay )
 {
 // See bool GRIBOverlayFactory::RenderGribSigWh(GribRecord *pGR, wxDC &dc, PlugIn_ViewPort *vp)
 /* TODO
@@ -310,7 +285,7 @@ void KMLOverlayFactory::Container::RenderGroundOverlay( wxDC &dc, PlugIn_ViewPor
  */
 }
 
-void KMLOverlayFactory::Container::RenderGeometry( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::GeometryPtr& geometry, const kmldom::StylePtr& style )
+void KMLOverlayFactory::Container::RenderGeometry( ocpnDC &dc, PlugIn_ViewPort *vp, const kmldom::GeometryPtr& geometry, const kmldom::StylePtr& style )
 {
       if ( !geometry ) {
             return;
@@ -362,7 +337,7 @@ void KMLOverlayFactory::Container::RenderGeometry( wxDC &dc, PlugIn_ViewPort *vp
       }
 }
 
-void KMLOverlayFactory::Container::RenderFeature( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::FeaturePtr& feature)
+void KMLOverlayFactory::Container::RenderFeature( ocpnDC &dc, PlugIn_ViewPort *vp, const kmldom::FeaturePtr& feature)
 {
       if ( !feature )
       {
@@ -411,7 +386,7 @@ void KMLOverlayFactory::Container::RenderFeature( wxDC &dc, PlugIn_ViewPort *vp,
       }
 }
 
-bool KMLOverlayFactory::Container::Render( wxDC &dc, PlugIn_ViewPort *vp )
+bool KMLOverlayFactory::Container::Render( ocpnDC &dc, PlugIn_ViewPort *vp )
 {
       if ( !m_ready )
             return false;

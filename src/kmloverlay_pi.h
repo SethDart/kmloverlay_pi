@@ -39,7 +39,7 @@
 #define     PLUGIN_VERSION_MINOR    1
 
 #define     MY_API_VERSION_MAJOR    1
-#define     MY_API_VERSION_MINOR    6
+#define     MY_API_VERSION_MINOR    7
 
 #include <wx/aui/aui.h>
 #include <wx/fileconf.h>
@@ -72,7 +72,7 @@ public:
       void OnToolbarToolCallback(int id);
 
       void SetColorScheme( PI_ColorScheme cs );
-      bool RenderOverlay( wxDC &dc, PlugIn_ViewPort *vp );
+      bool RenderOverlay( ocpnDC &dc, PlugIn_ViewPort *vp );
 
       void ShowPreferencesDialog( wxWindow* parent );
 

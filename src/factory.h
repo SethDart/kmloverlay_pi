@@ -44,7 +44,7 @@ public:
       KMLOverlayFactory();
       ~KMLOverlayFactory();
 
-      bool RenderOverlay( wxDC &dc, PlugIn_ViewPort *vp );
+      bool RenderOverlay( ocpnDC &dc, PlugIn_ViewPort *vp );
 
       bool Add( wxString filename, bool visible );
       void SetVisibility( int idx, bool visible );
@@ -59,20 +59,20 @@ private:
       public:
             Container(wxString filename, bool visible);
             bool Parse();
-            bool Render( wxDC &dc, PlugIn_ViewPort *vp );
+            bool Render( ocpnDC &dc, PlugIn_ViewPort *vp );
             void SetVisibility( bool visible );
             wxString GetFilename();
             bool GetVisibility();
 
       private:
             const kmldom::StylePtr GetFeatureStylePtr( const kmldom::FeaturePtr& feature );
-            void RenderPoint( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::PointPtr& point, const kmldom::StylePtr& style );
-            void RenderLineString( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::LineStringPtr& linestring, const kmldom::StylePtr& style );
-            void RenderLinearRing( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::LinearRingPtr& linearring, const kmldom::StylePtr& style );
-            void RenderPolygon( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::PolygonPtr& polygon, const kmldom::StylePtr& style );
-            void RenderGroundOverlay( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::GroundOverlayPtr& groundoverlay );
-            void RenderGeometry( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::GeometryPtr& geometry, const kmldom::StylePtr& style );
-            void RenderFeature( wxDC &dc, PlugIn_ViewPort *vp, const kmldom::FeaturePtr& feature );
+            void RenderPoint( ocpnDC &dc, PlugIn_ViewPort *vp, const kmldom::PointPtr& point, const kmldom::StylePtr& style );
+            void RenderLineString( ocpnDC &dc, PlugIn_ViewPort *vp, const kmldom::LineStringPtr& linestring, const kmldom::StylePtr& style );
+            void RenderLinearRing( ocpnDC &dc, PlugIn_ViewPort *vp, const kmldom::LinearRingPtr& linearring, const kmldom::StylePtr& style );
+            void RenderPolygon( ocpnDC &dc, PlugIn_ViewPort *vp, const kmldom::PolygonPtr& polygon, const kmldom::StylePtr& style );
+            void RenderGroundOverlay( ocpnDC &dc, PlugIn_ViewPort *vp, const kmldom::GroundOverlayPtr& groundoverlay );
+            void RenderGeometry( ocpnDC &dc, PlugIn_ViewPort *vp, const kmldom::GeometryPtr& geometry, const kmldom::StylePtr& style );
+            void RenderFeature( ocpnDC &dc, PlugIn_ViewPort *vp, const kmldom::FeaturePtr& feature );
             bool       m_ready;
             wxString   m_filename;
             bool       m_visible;
