@@ -1,0 +1,28 @@
+From c0c7c5c0cdb3a39c80a380379f6648c335241d97 Mon Sep 17 00:00:00 2001
+From: Jean-Eudes Onfray <je@onfray.fr>
+Date: Fri, 24 Feb 2012 14:17:01 +0100
+Subject: [PATCH 03/03] Core: Crop image in ocpnDC::DrawBitmap before drawing
+ it.
+
+  GLDrawBlendData doesn't draw anything if x<0 or y<0 (when image starts out of viewport)
+  Required for grib_pi
+---
+ src/ocpndc.cpp |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/ocpndc.cpp b/src/ocpndc.cpp
+index 4c96552..6fd1027 100644
+--- a/src/ocpndc.cpp
++++ b/src/ocpndc.cpp
+@@ -598,7 +598,7 @@ void ocpnDC::DrawBitmap(const wxBitmap &bitmap, wxCoord x, wxCoord y, bool usema
+             int w = bitmap.GetWidth()-dx;
+             int h = bitmap.GetHeight()-dy;
+             /* picture is out of viewport */
+-            if (w<=0 || h<=0)
++            if (w<0 || h<0)
+                   return;
+             wxBitmap newBitmap = bitmap.GetSubBitmap(
+                              wxRect(dx, dy, w, h));
+-- 
+1.7.10.2
+
