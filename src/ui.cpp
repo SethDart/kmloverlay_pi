@@ -41,7 +41,7 @@
  *************************************************************************/
 
 KMLOverlayUI::KMLOverlayUI( wxWindow *pparent, wxWindowID id, wxString filename )
-      :wxPanel( pparent, id, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE, _T("KML overlay") )
+      :wxPanel( pparent, id, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE, _("KML overlay") )
 {
       wxColour cl;
       GetGlobalColor(_T("DILG1"), &cl);
@@ -139,7 +139,7 @@ void KMLOverlayUI::UpdateButtonsState()
 
 void KMLOverlayUI::OnItemAdd( wxCommandEvent &event )
 {
-      wxFileDialog fdlg( this, _("Select a file"), wxT(""), wxT(""), wxT("*.kml"), wxFD_OPEN|wxFD_FILE_MUST_EXIST );
+      wxFileDialog fdlg( this, _("Select a file"), wxT(""), wxT(""), _("KML files (*.kml;*.kmz)|*.kml;*.kmz"), wxFD_OPEN|wxFD_FILE_MUST_EXIST );
       if ( fdlg.ShowModal() == wxID_OK)
       {
             AddFile( fdlg.GetPath(), true );

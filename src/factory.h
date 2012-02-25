@@ -76,6 +76,7 @@ private:
             bool       m_ready;
             wxString   m_filename;
             bool       m_visible;
+            kmlengine::KmzFilePtr m_kmz_file;
             kmlengine::KmlFilePtr m_kml_file;
             kmldom::FeaturePtr m_root;
 

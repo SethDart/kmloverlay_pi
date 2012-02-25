@@ -35,6 +35,8 @@
 #include <iostream>
 #include <kml/base/file.h>
 #include "factory.h"
+#include <wx/mstream.h>
+#include "icons.h"
 
 const wxColor KMLOverlayDefaultColor( 144, 144, 144 );
 
@@ -107,7 +109,8 @@ int KMLOverlayFactory::GetCount()
 }
 
 KMLOverlayFactory::Container::Container( wxString filename, bool visible )
-     : m_ready( false ), m_filename( filename ), m_visible( visible )
+     : m_ready( false ), m_filename( filename ), m_visible( visible ),
+      m_kmz_file( NULL), m_kml_file( NULL ), m_root( NULL )
 {
 }
 
@@ -116,12 +119,27 @@ bool KMLOverlayFactory::Container::Parse()
       std::string _filename( m_filename.mb_str() );
       std::string file_data;
       if ( !kmlbase::File::ReadFileToString( _filename, &file_data ) ) {
-            // TODO: display error message
+            wxLogMessage( _T("KMLOverlayFactory::Container::Parse Failed to read file content") );
             return false;
       }
 
+      std::string kml;
+      if ( kmlengine::KmzFile::IsKmz( file_data ) ) {
+            m_kmz_file = kmlengine::KmzFile::OpenFromString( file_data );
+            if ( !m_kmz_file.get() ) {
+                  wxLogMessage( _T("KMLOverlayFactory::Container::Parse Failed opening KMZ file") );
+                  return false;
+            }
+            if ( !m_kmz_file->ReadKml( &kml ) ) {
+                  wxLogMessage( _T("KMLOverlayFactory::Container::Parse Failed to read KML from KMZ") );
+                  return false;
+            }
+      } else {
+            kml = file_data;
+      }
+
       std::string errors;
-      m_kml_file = kmlengine::KmlFile::CreateFromParse( file_data, &errors );
+      m_kml_file = kmlengine::KmlFile::CreateFromParse( kml, &errors );
       if ( !m_kml_file ) {
             // TODO: display error message
             return false;
@@ -276,13 +294,66 @@ void KMLOverlayFactory::Container::RenderPolygon( ocpnDC &dc, PlugIn_ViewPort *v
 
 void KMLOverlayFactory::Container::RenderGroundOverlay( ocpnDC &dc, PlugIn_ViewPort *vp, const kmldom::GroundOverlayPtr& groundoverlay )
 {
-// See bool GRIBOverlayFactory::RenderGribSigWh(GribRecord *pGR, wxDC &dc, PlugIn_ViewPort *vp)
+      int alpha = 255;
+      if ( groundoverlay->has_color() ) {
+            kmlbase::Color32 col32 = groundoverlay->get_color();
+            alpha = col32.get_alpha();
+      }
+
 /* TODO
-      if groundoverlay->has_latlonbox()
-            groundoverlay->get_latlonbox()
  should we handle <gx:LatLonQuad> (Used for nonrectangular quadrilateral ground overlays.)
    has_gx_latlonquad get_gx_latlonquad
+      CoordinatesPtr& latlonquad.get_coordinates
  */
+      if ( groundoverlay->has_latlonbox() ) {
+            const kmldom::LatLonBoxPtr latlonbox = groundoverlay->get_latlonbox();
+            wxPoint ptNW, ptSE;
+            GetCanvasPixLL( vp,  &ptNW, latlonbox->get_north(), latlonbox->get_west() );
+            GetCanvasPixLL( vp,  &ptSE, latlonbox->get_south(), latlonbox->get_east() );
+
+/* TODO:
+has_refreshmode
+get_refreshmode
+has_refreshinterval
+get_refreshinterval
+has_httpquery
+get_httpquery
+*/
+            std::string href;
+            if ( kmlengine::GetIconParentHref( groundoverlay, &href ) ) {
+                  //kml_cache->FetchDataRelative(kml_file->get_url(), href, data);
+
+                  std::string content;
+                  //if ( kmlengine::FetchIcon( m_kml_file, groundoverlay, &content ) ) {
+                  if ( m_kmz_file && m_kmz_file->ReadFile( href.c_str(), &content ) ) {
+                        wxMemoryInputStream is( content.c_str(), content.size() );
+                        wxImage image( is, wxBITMAP_TYPE_ANY );
+                        if ( image.IsOk() ) {
+                              if ( latlonbox->has_rotation() ) {
+                                    latlonbox->get_rotation();
+                              }
+                              int dx = ptSE.x - ptNW.x + 1;
+                              int dy = ptSE.y - ptNW.y + 1;
+                              if ( dx < 32 || dy < 32 ) {
+                                    // Overlay is very small, let's draw a default KML picture instead
+                                    dc.DrawBitmap( *_img_undersized, ptNW.x, ptNW.y, false );
+                                    return;
+                              }
+                              image.Rescale( dx, dy );
+                              image.InitAlpha();
+                              int size = image.GetWidth() * image.GetHeight();
+                              unsigned char *alphad = (unsigned char *)malloc ( size * sizeof ( unsigned char ) );
+                              unsigned char *a = alphad;
+                              for ( int i=0 ; i<size; i++ ) {
+                                    *a++ = ( unsigned char )alpha;
+                              }
+                              image.SetAlpha( alphad );
+                              wxBitmap bitmap( image );
+                              dc.DrawBitmap( bitmap, ptNW.x, ptNW.y, true );
+                        }
+                  }
+            }
+      }
 }
 
 void KMLOverlayFactory::Container::RenderGeometry( ocpnDC &dc, PlugIn_ViewPort *vp, const kmldom::GeometryPtr& geometry, const kmldom::StylePtr& style )

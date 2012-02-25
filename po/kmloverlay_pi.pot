@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kmloverlay_pi 2.6.1310\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2012-02-12 18:10+0100\n"
+"POT-Creation-Date: 2012-02-25 13:32+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,15 +17,15 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/kmloverlay_pi.cpp:122 src/kmloverlay_pi.cpp:127
+#: src/kmloverlay_pi.cpp:71 src/kmloverlay_pi.cpp:76 src/ui.cpp:44
 msgid "KML overlay"
 msgstr ""
 
-#: src/kmloverlay_pi.cpp:187
+#: src/kmloverlay_pi.cpp:136
 msgid "KMLOverlay"
 msgstr ""
 
-#: src/kmloverlay_pi.cpp:193 src/kmloverlay_pi.cpp:198
+#: src/kmloverlay_pi.cpp:142 src/kmloverlay_pi.cpp:147
 msgid "KML overlay plugin for OpenCPN"
 msgstr ""
 
@@ -43,4 +43,8 @@ msgstr ""
 
 #: src/ui.cpp:142
 msgid "Select a file"
+msgstr ""
+
+#: src/ui.cpp:142
+msgid "KML files (*.kml;*.kmz)|*.kml;*.kmz"
 msgstr ""
