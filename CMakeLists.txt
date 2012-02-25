@@ -98,6 +98,7 @@ ENDIF(UNIX)
 
 IF(WIN32)
 INSTALL(TARGETS ${PACKAGE_NAME} RUNTIME DESTINATION "plugins")
+INSTALL(FILES ${libkml_EXPAT_DLL} DESTINATION ".")
 ENDIF(WIN32)
 
 # find src/ -name \*.cpp -or -name \*.h -or -name \*.hpp >po/POTFILES.in
