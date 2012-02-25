@@ -201,8 +201,10 @@ void KMLOverlayFactory::Container::RenderLineString( ocpnDC &dc, PlugIn_ViewPort
 {
       if ( linestring->has_coordinates() ) {
             kmldom::CoordinatesPtr coord = linestring->get_coordinates();
-            wxPoint pts[coord->get_coordinates_array_size()];
-            for ( size_t i = 0; i < coord->get_coordinates_array_size(); ++i ) {
+            wxPoint *pts;
+            size_t sz = coord->get_coordinates_array_size();
+            pts = new wxPoint[sz];
+            for ( size_t i = 0; i < sz; ++i ) {
                   kmlbase::Vec3 vec = coord->get_coordinates_array_at( i );
                   GetCanvasPixLL( vp,  &pts[i], vec.get_latitude(), vec.get_longitude() );
             }
@@ -226,6 +228,8 @@ void KMLOverlayFactory::Container::RenderLineString( ocpnDC &dc, PlugIn_ViewPort
             }
             dc.SetPen( pen );
             dc.DrawLines( coord->get_coordinates_array_size(), pts );
+            delete [] pts;
+            pts = NULL;
       }
 }
 
@@ -233,8 +237,10 @@ void KMLOverlayFactory::Container::RenderLinearRing( ocpnDC &dc, PlugIn_ViewPort
 {
       if ( linearring->has_coordinates() ) {
             kmldom::CoordinatesPtr coord = linearring->get_coordinates();
-            wxPoint pts[coord->get_coordinates_array_size()];
-            for ( size_t i = 0; i < coord->get_coordinates_array_size(); ++i ) {
+            wxPoint *pts;
+            size_t sz = coord->get_coordinates_array_size();
+            pts = new wxPoint[sz];
+            for ( size_t i = 0; i < sz; ++i ) {
                   kmlbase::Vec3 vec = coord->get_coordinates_array_at( i );
                   GetCanvasPixLL( vp,  &pts[i], vec.get_latitude(), vec.get_longitude() );
             }
@@ -278,6 +284,8 @@ void KMLOverlayFactory::Container::RenderLinearRing( ocpnDC &dc, PlugIn_ViewPort
             dc.SetPen( pen );
             dc.SetBrush( brush );
             dc.DrawPolygon( coord->get_coordinates_array_size(), pts );
+            delete [] pts;
+            pts = NULL;
       }
 }
 
