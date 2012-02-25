@@ -54,57 +54,6 @@ extern "C" DECL_EXP void destroy_pi(opencpn_plugin* p)
 //
 //---------------------------------------------------------------------------------------------------------
 
-wxString toSDMM ( int NEflag, double a )
-{
-      short neg = 0;
-      int d;
-      long m;
-
-      if ( a < 0.0 )
-      {
-            a = -a;
-            neg = 1;
-      }
-      d = ( int ) a;
-      m = ( long ) ( ( a - ( double ) d ) * 60000.0 );
-
-      if ( neg )
-            d = -d;
-
-      wxString s;
-
-      if ( !NEflag )
-            s.Printf ( _T ( "%d %02ld.%03ld'" ), d, m / 1000, m % 1000 );
-      else
-      {
-            if ( NEflag == 1 )
-            {
-                  char c = 'N';
-
-                  if ( neg )
-                  {
-                        d = -d;
-                        c = 'S';
-                  }
-
-                  s.Printf ( _T ( "%03d %02ld.%03ld %c" ), d, m / 1000, ( m % 1000 ), c );
-            }
-            else if ( NEflag == 2 )
-            {
-                  char c = 'E';
-
-                  if ( neg )
-                  {
-                        d = -d;
-                        c = 'W';
-                  }
-                  s.Printf ( _T ( "%03d %02ld.%03ld %c" ), d, m / 1000, ( m % 1000 ), c );
-            }
-      }
-      return s;
-}
-
-
 kmloverlay_pi::kmloverlay_pi(void *ppimgr)
       : opencpn_plugin(ppimgr)
 {
