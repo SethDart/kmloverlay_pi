@@ -40,7 +40,7 @@
 
 extern "C" DECL_EXP opencpn_plugin* create_pi(void *ppimgr)
 {
-    return (opencpn_plugin *)new kmloverlay_pi(ppimgr);
+    return new kmloverlay_pi(ppimgr);
 }
 
 extern "C" DECL_EXP void destroy_pi(opencpn_plugin* p)
@@ -55,7 +55,7 @@ extern "C" DECL_EXP void destroy_pi(opencpn_plugin* p)
 //---------------------------------------------------------------------------------------------------------
 
 kmloverlay_pi::kmloverlay_pi(void *ppimgr)
-      : opencpn_plugin(ppimgr)
+      : opencpn_plugin_17(ppimgr)
 {
       // Create the PlugIn icons
       initialize_images();
@@ -85,6 +85,7 @@ int kmloverlay_pi::Init(void)
 
       return (
            WANTS_OVERLAY_CALLBACK    |
+           WANTS_OPENGL_OVERLAY_CALLBACK |
            WANTS_TOOLBAR_CALLBACK    |
            INSTALLS_TOOLBAR_TOOL     |
 // nothing yet //           WANTS_PREFERENCES         |
@@ -173,11 +174,20 @@ void kmloverlay_pi::SetColorScheme( PI_ColorScheme cs )
       }
 }
 
-bool kmloverlay_pi::RenderOverlay( ocpnDC &dc, PlugIn_ViewPort *vp )
+bool kmloverlay_pi::RenderOverlay( wxDC &dc, PlugIn_ViewPort *vp )
 {
       if ( m_puserinput )
       {
             return m_puserinput->RenderOverlay( dc, vp );
+      }
+      return false;
+}
+
+bool kmloverlay_pi::RenderGLOverlay( wxGLContext *pcontext, PlugIn_ViewPort *vp )
+{
+      if ( m_puserinput )
+      {
+            return m_puserinput->RenderGLOverlay( pcontext, vp );
       }
       return false;
 }

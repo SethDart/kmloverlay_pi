@@ -36,7 +36,7 @@
 #endif //precompiled headers
 
 #define     PLUGIN_VERSION_MAJOR    0
-#define     PLUGIN_VERSION_MINOR    1
+#define     PLUGIN_VERSION_MINOR    2
 
 #define     MY_API_VERSION_MAJOR    1
 #define     MY_API_VERSION_MINOR    7
@@ -52,7 +52,7 @@
 //    The plugin class definition
 //----------------------------------------------------------------------------------------------------------
 
-class kmloverlay_pi : public opencpn_plugin
+class kmloverlay_pi : public opencpn_plugin_17
 {
 public:
       kmloverlay_pi(void *ppimgr);
@@ -72,7 +72,8 @@ public:
       void OnToolbarToolCallback(int id);
 
       void SetColorScheme( PI_ColorScheme cs );
-      bool RenderOverlay( ocpnDC &dc, PlugIn_ViewPort *vp );
+      bool RenderOverlay( wxDC &dc, PlugIn_ViewPort *vp );
+      bool RenderGLOverlay( wxGLContext *pcontext, PlugIn_ViewPort *vp );
 
       void ShowPreferencesDialog( wxWindow* parent );
 

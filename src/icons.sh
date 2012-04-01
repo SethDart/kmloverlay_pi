@@ -7,7 +7,7 @@ path=$(dirname $0)
 # Require inkscape
 
 # 32x32
-for pic in $path/kmloverlay_pi.svg $path/kmloverlay.svg $path/undersized.svg
+for pic in $path/kmloverlay_pi.svg $path/kmloverlay.svg $path/undersized.svg $path/point.svg
 do
   echo "converting $pic"
   inkscape --without-gui --export-png=$path/$(basename $pic .svg ).png --export-dpi=72 --export-background-opacity=0 --export-width=32 --export-height=32 $pic >/dev/null

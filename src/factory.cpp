@@ -54,11 +54,20 @@ KMLOverlayFactory::~KMLOverlayFactory()
       }
 }
 
-bool KMLOverlayFactory::RenderOverlay( ocpnDC &dc, PlugIn_ViewPort *vp )
+bool KMLOverlayFactory::RenderOverlay( wxDC &dc, PlugIn_ViewPort *vp )
 {
       for ( size_t i = 0; i < m_Objects.GetCount(); i++ )
       {
             m_Objects.Item( i )->Render( dc, vp );
+      }
+      return true;
+}
+
+bool KMLOverlayFactory::RenderGLOverlay( wxGLContext *pcontext, PlugIn_ViewPort *vp )
+{
+      for ( size_t i = 0; i < m_Objects.GetCount(); i++ )
+      {
+            m_Objects.Item( i )->RenderGL( pcontext, vp );
       }
       return true;
 }
@@ -175,10 +184,182 @@ const kmldom::StylePtr KMLOverlayFactory::Container::GetFeatureStylePtr( const k
       return style;
 }
 
-void KMLOverlayFactory::Container::RenderPoint( ocpnDC &dc, PlugIn_ViewPort *vp, const kmldom::PointPtr& point, const kmldom::StylePtr& style )
+void KMLOverlayFactory::Container::DoDrawCircle( wxPen pen, wxBrush brush, wxPoint pt, int radius )
+{
+      if ( m_pdc ) {
+            m_pdc->SetPen( pen );
+            m_pdc->SetBrush( brush );
+            m_pdc->DrawCircle( pt, radius );
+      } else {
+            glPushAttrib( GL_COLOR_BUFFER_BIT | GL_LINE_BIT | GL_HINT_BIT );      //Save state
+
+            glEnable( GL_LINE_SMOOTH );
+            glEnable( GL_BLEND );
+            glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+            glHint( GL_LINE_SMOOTH_HINT, GL_NICEST );
+
+            if ( brush != wxNullBrush && brush.GetStyle() != wxTRANSPARENT ) {
+                  wxColor c = brush.GetColour();
+                  glColor4ub( c.Red(), c.Green(), c.Blue(), c.Alpha() );
+                  glBegin( GL_TRIANGLE_FAN );
+                  glVertex2d( pt.x, pt.y );
+                  for ( double a = 0; a <= 2*M_PI; a+=2*M_PI/20 )
+                        glVertex2d( pt.x + radius*sin(a), pt.y + radius*cos(a) );
+                  glEnd();
+            }
+
+            if( pen != wxNullPen ) {
+                  wxColor c = pen.GetColour();
+                  int width = pen.GetWidth();
+                  glColor4ub( c.Red(), c.Green(), c.Blue(), c.Alpha() );
+                  glLineWidth( width );
+                  glBegin( GL_LINE_STRIP );
+                  for ( double a = 0; a <= 2*M_PI; a+=2*M_PI/200 )
+                        glVertex2d( pt.x + radius*sin(a), pt.y + radius*cos(a) );
+                  glEnd();
+            }
+
+            glPopAttrib();            // restore state
+      }
+}
+
+void KMLOverlayFactory::Container::DoDrawLines( wxPen pen, int n, wxPoint points[] )
+{
+      if ( m_pdc ) {
+            m_pdc->SetPen( pen );
+            m_pdc->DrawLines( n, points );
+      } else {
+            glPushAttrib( GL_COLOR_BUFFER_BIT | GL_LINE_BIT | GL_HINT_BIT );      //Save state
+
+            glEnable( GL_LINE_SMOOTH );
+            glEnable( GL_BLEND );
+            glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+            glHint( GL_LINE_SMOOTH_HINT, GL_NICEST );
+
+            if( pen != wxNullPen ) {
+                  wxColor c = pen.GetColour();
+                  int width = pen.GetWidth();
+                  glColor4ub( c.Red(), c.Green(), c.Blue(), c.Alpha() );
+                  glLineWidth( width );
+                  glBegin( GL_LINE_STRIP );
+                  for ( int i=0; i<n; i++ )
+                        glVertex2i( points[i].x, points[i].y );
+                  glEnd();
+            }
+            glPopAttrib();            // restore state
+      }
+}
+
+void KMLOverlayFactory::Container::DoDrawPolygon( wxPen pen, wxBrush brush, int n, wxPoint points[] )
+{
+      if ( m_pdc ) {
+            m_pdc->SetPen( pen );
+            m_pdc->SetBrush( brush );
+            m_pdc->DrawPolygon( n, points );
+      } else {
+            glPushAttrib( GL_COLOR_BUFFER_BIT | GL_LINE_BIT | GL_HINT_BIT | GL_POLYGON_BIT );      //Save state
+
+            glEnable( GL_LINE_SMOOTH );
+            glEnable( GL_POLYGON_SMOOTH );
+            glEnable( GL_BLEND );
+            glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+            glHint( GL_LINE_SMOOTH_HINT, GL_NICEST );
+            glHint( GL_POLYGON_SMOOTH_HINT, GL_NICEST );
+
+            if ( brush != wxNullBrush && brush.GetStyle() != wxTRANSPARENT ) {
+                  wxColor c = brush.GetColour();
+                  glColor4ub( c.Red(), c.Green(), c.Blue(), c.Alpha() );
+                  glBegin( GL_POLYGON );
+                  for ( int i=0; i<n; i++ )
+                        glVertex2i( points[i].x, points[i].y );
+                  glEnd();
+            }
+
+            if( pen != wxNullPen ) {
+                  wxColor c = pen.GetColour();
+                  int width = pen.GetWidth();
+                  glColor4ub( c.Red(), c.Green(), c.Blue(), c.Alpha() );
+                  glLineWidth( width );
+                  glBegin( GL_LINE_LOOP );
+                  for ( int i=0; i<n; i++ )
+                        glVertex2i( points[i].x, points[i].y );
+                  glEnd();
+            }
+            glPopAttrib();
+      }
+}
+
+void KMLOverlayFactory::Container::DoDrawBitmap( const wxBitmap &bitmap, wxCoord x, wxCoord y, bool usemask )
+{
+      if ( m_pdc ) {
+            m_pdc->DrawBitmap( bitmap, x, y, usemask );
+      } else {
+            // GL doesn't draw anything if x<0 || y<0 so we must crop image first
+            wxBitmap bmp;
+            if ( x < 0 || y < 0 ) {
+                  int dx = (x < 0 ? -x : 0);
+                  int dy = (y < 0 ? -y : 0);
+                  int w = bitmap.GetWidth()-dx;
+                  int h = bitmap.GetHeight()-dy;
+                  /* picture is out of viewport */
+                  if ( w <= 0 || h <= 0 )
+                        return;
+                  wxBitmap newBitmap = bitmap.GetSubBitmap( wxRect( dx, dy, w, h ) );
+                  x += dx;
+                  y += dy;
+                  bmp = newBitmap;
+            } else {
+                  bmp = bitmap;
+            }
+            wxImage image = bmp.ConvertToImage();
+            int w = image.GetWidth(), h = image.GetHeight();
+
+            if ( usemask ) {
+                  unsigned char *d = image.GetData();
+                  unsigned char *a = image.GetAlpha();
+
+                  unsigned char mr, mg, mb;
+                  if( !image.GetOrFindMaskColour( &mr, &mg, &mb ) && !a )
+                        printf("trying to use mask to draw a bitmap without alpha or mask\n");
+
+                  unsigned char *e = new unsigned char[4*w*h];
+                  //               int w = image.GetWidth(), h = image.GetHeight();
+                  int sb = w*h;
+                  unsigned char r, g, b;
+                  for ( int i=0 ; i<sb ; i++ ) {
+                        r = d[i*3 + 0];
+                        g = d[i*3 + 1];
+                        b = d[i*3 + 2];
+
+                        e[i*4 + 0] = r;
+                        e[i*4 + 1] = g;
+                        e[i*4 + 2] = b;
+
+                        e[i*4 + 3] = a ? a[i] :
+                        ((r==mr)&&(g==mg)&&(b==mb) ? 0 : 255);
+                  }
+
+                  glColor4f( 1, 1, 1, 1 );
+                  glEnable( GL_BLEND );
+                  glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+                  glRasterPos2i( x, y );
+                  glPixelZoom( 1, -1 );
+                  glDrawPixels( w, h, GL_RGBA, GL_UNSIGNED_BYTE, e );
+                  glPixelZoom( 1, 1 );
+                  glDisable( GL_BLEND );
+                  free( e );
+            } else {
+                  glRasterPos2i( x, y );
+                  glPixelZoom( 1, -1 ); /* draw data from top to bottom */
+                  glDrawPixels( w, h, GL_RGB, GL_UNSIGNED_BYTE, image.GetData() );
+                  glPixelZoom( 1, 1 );
+            }
+      }
+}
+
+void KMLOverlayFactory::Container::RenderPoint( const kmldom::PointPtr& point, const kmldom::StylePtr& style )
 {
       if ( point->has_coordinates() ) {
-            int radius = 5;
             wxPoint pt;
 
             kmldom::CoordinatesPtr coord = point->get_coordinates();
@@ -188,16 +369,13 @@ void KMLOverlayFactory::Container::RenderPoint( ocpnDC &dc, PlugIn_ViewPort *vp,
                   return;
             }
             kmlbase::Vec3 vec = coord->get_coordinates_array_at( 0 );
-            GetCanvasPixLL( vp,  &pt, vec.get_latitude(), vec.get_longitude() );
+            GetCanvasPixLL( m_pvp,  &pt, vec.get_latitude(), vec.get_longitude() );
 
-            wxPen pen( KMLOverlayDefaultColor, 1 );
-            dc.SetPen( pen );
-            dc.SetBrush( KMLOverlayDefaultColor );
-            dc.DrawCircle( pt, radius );
+            DoDrawBitmap( *_img_point, pt.x-16, pt.y-32, true );
       }
 }
 
-void KMLOverlayFactory::Container::RenderLineString( ocpnDC &dc, PlugIn_ViewPort *vp, const kmldom::LineStringPtr& linestring, const kmldom::StylePtr& style )
+void KMLOverlayFactory::Container::RenderLineString( const kmldom::LineStringPtr& linestring, const kmldom::StylePtr& style )
 {
       if ( linestring->has_coordinates() ) {
             kmldom::CoordinatesPtr coord = linestring->get_coordinates();
@@ -206,7 +384,7 @@ void KMLOverlayFactory::Container::RenderLineString( ocpnDC &dc, PlugIn_ViewPort
             pts = new wxPoint[sz];
             for ( size_t i = 0; i < sz; ++i ) {
                   kmlbase::Vec3 vec = coord->get_coordinates_array_at( i );
-                  GetCanvasPixLL( vp,  &pts[i], vec.get_latitude(), vec.get_longitude() );
+                  GetCanvasPixLL( m_pvp,  &pts[i], vec.get_latitude(), vec.get_longitude() );
             }
 
             wxPen pen( KMLOverlayDefaultColor, 2 );
@@ -226,14 +404,13 @@ void KMLOverlayFactory::Container::RenderLineString( ocpnDC &dc, PlugIn_ViewPort
                                      linestyle->get_width() );
                   }
             }
-            dc.SetPen( pen );
-            dc.DrawLines( coord->get_coordinates_array_size(), pts );
+            DoDrawLines( pen, coord->get_coordinates_array_size(), pts );
             delete [] pts;
             pts = NULL;
       }
 }
 
-void KMLOverlayFactory::Container::RenderLinearRing( ocpnDC &dc, PlugIn_ViewPort *vp, const kmldom::LinearRingPtr& linearring, const kmldom::StylePtr& style )
+void KMLOverlayFactory::Container::RenderLinearRing( const kmldom::LinearRingPtr& linearring, const kmldom::StylePtr& style )
 {
       if ( linearring->has_coordinates() ) {
             kmldom::CoordinatesPtr coord = linearring->get_coordinates();
@@ -242,7 +419,7 @@ void KMLOverlayFactory::Container::RenderLinearRing( ocpnDC &dc, PlugIn_ViewPort
             pts = new wxPoint[sz];
             for ( size_t i = 0; i < sz; ++i ) {
                   kmlbase::Vec3 vec = coord->get_coordinates_array_at( i );
-                  GetCanvasPixLL( vp,  &pts[i], vec.get_latitude(), vec.get_longitude() );
+                  GetCanvasPixLL( m_pvp,  &pts[i], vec.get_latitude(), vec.get_longitude() );
             }
 
             wxPen pen( KMLOverlayDefaultColor, 2 );
@@ -281,26 +458,24 @@ void KMLOverlayFactory::Container::RenderLinearRing( ocpnDC &dc, PlugIn_ViewPort
                   }
             }
 
-            dc.SetPen( pen );
-            dc.SetBrush( brush );
-            dc.DrawPolygon( coord->get_coordinates_array_size(), pts );
+            DoDrawPolygon( pen, brush, coord->get_coordinates_array_size(), pts );
             delete [] pts;
             pts = NULL;
       }
 }
 
-void KMLOverlayFactory::Container::RenderPolygon( ocpnDC &dc, PlugIn_ViewPort *vp, const kmldom::PolygonPtr& polygon, const kmldom::StylePtr& style )
+void KMLOverlayFactory::Container::RenderPolygon( const kmldom::PolygonPtr& polygon, const kmldom::StylePtr& style )
 {
       if ( polygon->has_outerboundaryis() ) {
             kmldom::OuterBoundaryIsPtr bound = polygon->get_outerboundaryis();
             if ( bound->has_linearring() ) {
-                  RenderLinearRing( dc, vp, bound->get_linearring(), style );
+                  RenderLinearRing( bound->get_linearring(), style );
             }
 // TODO: handle inner boundary (array)
       }
 }
 
-void KMLOverlayFactory::Container::RenderGroundOverlay( ocpnDC &dc, PlugIn_ViewPort *vp, const kmldom::GroundOverlayPtr& groundoverlay )
+void KMLOverlayFactory::Container::RenderGroundOverlay( const kmldom::GroundOverlayPtr& groundoverlay )
 {
       int alpha = 255;
       if ( groundoverlay->has_color() ) {
@@ -316,8 +491,8 @@ void KMLOverlayFactory::Container::RenderGroundOverlay( ocpnDC &dc, PlugIn_ViewP
       if ( groundoverlay->has_latlonbox() ) {
             const kmldom::LatLonBoxPtr latlonbox = groundoverlay->get_latlonbox();
             wxPoint ptNW, ptSE;
-            GetCanvasPixLL( vp,  &ptNW, latlonbox->get_north(), latlonbox->get_west() );
-            GetCanvasPixLL( vp,  &ptSE, latlonbox->get_south(), latlonbox->get_east() );
+            GetCanvasPixLL( m_pvp,  &ptNW, latlonbox->get_north(), latlonbox->get_west() );
+            GetCanvasPixLL( m_pvp,  &ptSE, latlonbox->get_south(), latlonbox->get_east() );
 
 /* TODO:
 has_refreshmode
@@ -344,7 +519,7 @@ get_httpquery
                               int dy = ptSE.y - ptNW.y + 1;
                               if ( dx < 32 || dy < 32 ) {
                                     // Overlay is very small, let's draw a default KML picture instead
-                                    dc.DrawBitmap( *_img_undersized, ptNW.x, ptNW.y, false );
+                                    DoDrawBitmap( *_img_undersized, ptNW.x, ptNW.y, false );
                                     return;
                               }
                               image.Rescale( dx, dy );
@@ -357,14 +532,14 @@ get_httpquery
                               }
                               image.SetAlpha( alphad );
                               wxBitmap bitmap( image );
-                              dc.DrawBitmap( bitmap, ptNW.x, ptNW.y, true );
+                              DoDrawBitmap( bitmap, ptNW.x, ptNW.y, true );
                         }
                   }
             }
       }
 }
 
-void KMLOverlayFactory::Container::RenderGeometry( ocpnDC &dc, PlugIn_ViewPort *vp, const kmldom::GeometryPtr& geometry, const kmldom::StylePtr& style )
+void KMLOverlayFactory::Container::RenderGeometry( const kmldom::GeometryPtr& geometry, const kmldom::StylePtr& style )
 {
       if ( !geometry ) {
             return;
@@ -374,28 +549,28 @@ void KMLOverlayFactory::Container::RenderGeometry( ocpnDC &dc, PlugIn_ViewPort *
       case kmldom::Type_Point:
       {
             if ( const kmldom::PointPtr point = kmldom::AsPoint( geometry ) ) {
-                  RenderPoint( dc, vp, point, style );
+                  RenderPoint( point, style );
             }
       }
       break;
       case kmldom::Type_LineString:
       {
             if ( const kmldom::LineStringPtr linestring = kmldom::AsLineString( geometry ) ) {
-                  RenderLineString( dc, vp, linestring, style );
+                  RenderLineString( linestring, style );
             }
       }
       break;
       case kmldom::Type_LinearRing:
       {
             if ( const kmldom::LinearRingPtr linearring = kmldom::AsLinearRing( geometry ) ) {
-                  RenderLinearRing( dc, vp, linearring, style );
+                  RenderLinearRing( linearring, style );
             }
       }
       break;
       case kmldom::Type_Polygon:
       {
             if ( const kmldom::PolygonPtr polygon = kmldom::AsPolygon( geometry ) ) {
-                  RenderPolygon( dc, vp, polygon, style );
+                  RenderPolygon( polygon, style );
             }
       }
       break;
@@ -404,7 +579,7 @@ void KMLOverlayFactory::Container::RenderGeometry( ocpnDC &dc, PlugIn_ViewPort *
             if ( const kmldom::MultiGeometryPtr multigeometry = kmldom::AsMultiGeometry( geometry ) )
             {
                   for ( size_t i = 0; i < multigeometry->get_geometry_array_size(); ++i ) {
-                        RenderGeometry( dc, vp, multigeometry->get_geometry_array_at( i ), style );
+                        RenderGeometry( multigeometry->get_geometry_array_at( i ), style );
                   }
             }
       }
@@ -416,7 +591,7 @@ void KMLOverlayFactory::Container::RenderGeometry( ocpnDC &dc, PlugIn_ViewPort *
       }
 }
 
-void KMLOverlayFactory::Container::RenderFeature( ocpnDC &dc, PlugIn_ViewPort *vp, const kmldom::FeaturePtr& feature)
+void KMLOverlayFactory::Container::RenderFeature( const kmldom::FeaturePtr& feature)
 {
       if ( !feature )
       {
@@ -443,14 +618,14 @@ void KMLOverlayFactory::Container::RenderFeature( ocpnDC &dc, PlugIn_ViewPort *v
       case kmldom::Type_GroundOverlay:
       {
             if ( const kmldom::GroundOverlayPtr groundoverlay = kmldom::AsGroundOverlay( feature ) ) {
-                  RenderGroundOverlay( dc, vp, groundoverlay );
+                  RenderGroundOverlay( groundoverlay );
             }
       }
       break;
       case kmldom::Type_Placemark:
       {
             if ( const kmldom::PlacemarkPtr placemark = kmldom::AsPlacemark( feature ) ) {
-                  RenderGeometry( dc, vp, placemark->get_geometry(), GetFeatureStylePtr( feature ) );
+                  RenderGeometry( placemark->get_geometry(), GetFeatureStylePtr( feature ) );
             }
       }
       break;
@@ -460,12 +635,12 @@ void KMLOverlayFactory::Container::RenderFeature( ocpnDC &dc, PlugIn_ViewPort *v
 
       if ( const kmldom::ContainerPtr container = kmldom::AsContainer( feature ) ) {
             for ( size_t i = 0; i < container->get_feature_array_size(); ++i ) {
-                  RenderFeature( dc, vp, container->get_feature_array_at( i ) );
+                  RenderFeature( container->get_feature_array_at( i ) );
             }
       }
 }
 
-bool KMLOverlayFactory::Container::Render( ocpnDC &dc, PlugIn_ViewPort *vp )
+bool KMLOverlayFactory::Container::DoRender()
 {
       if ( !m_ready )
             return false;
@@ -473,8 +648,24 @@ bool KMLOverlayFactory::Container::Render( ocpnDC &dc, PlugIn_ViewPort *vp )
       if ( !m_visible )
             return true;
 
-      RenderFeature( dc, vp, m_root );
+      RenderFeature( m_root );
       return true;
+}
+
+bool KMLOverlayFactory::Container::Render( wxDC &dc, PlugIn_ViewPort *vp )
+{
+      m_pdc = &dc;
+      m_pcontext = NULL;
+      m_pvp = vp;
+      return DoRender();
+}
+
+bool KMLOverlayFactory::Container::RenderGL( wxGLContext *pcontext, PlugIn_ViewPort *vp )
+{
+      m_pdc = NULL;
+      m_pcontext = pcontext;
+      m_pvp = vp;
+      return DoRender();
 }
 
 void KMLOverlayFactory::Container::SetVisibility( bool visible )
