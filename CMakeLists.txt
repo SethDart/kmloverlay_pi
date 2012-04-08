@@ -98,8 +98,20 @@ ENDIF(UNIX)
 
 IF(WIN32)
 INSTALL(TARGETS ${PACKAGE_NAME} RUNTIME DESTINATION "plugins")
-INSTALL(FILES ${libkml_EXPAT_DLL} DESTINATION ".")
+INSTALL(FILES ${libkml_EXPAT_DLL} ${libkml_ZLIB_DLL} DESTINATION ".")
 ENDIF(WIN32)
+
+IF (NOT WIN32)
+  IF (EXISTS /etc/debian_version)
+    SET(PACKAGE_DEPS "${PACKAGE_DEPS}, libkml0, liburiparser1, zlib1g, libexpat1" PARENT_SCOPE)
+  ENDIF (EXISTS /etc/debian_version)
+  IF (EXISTS /etc/redhat-release)
+    SET(PACKAGE_DEPS "${PACKAGE_DEPS}, libkml, uriparser, zlib, expat" PARENT_SCOPE)
+  ENDIF (EXISTS /etc/redhat-release)
+  IF (EXISTS /etc/suse-release OR EXISTS /etc/SuSE-release)
+    SET(PACKAGE_DEPS "${PACKAGE_DEPS}, libkml, liburiparser1, zlib, libexpat1" PARENT_SCOPE)
+  ENDIF (EXISTS /etc/suse-release OR EXISTS /etc/SuSE-release)
+ENDIF (NOT WIN32)
 
 # find src/ -name \*.cpp -or -name \*.h -or -name \*.hpp >po/POTFILES.in
 FIND_PROGRAM(GETTEXT_XGETTEXT_EXECUTABLE xgettext)
